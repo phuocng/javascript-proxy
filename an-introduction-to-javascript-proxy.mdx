@@ -1,0 +1,145 @@
+---
+created: '2024-01-01'
+description: An introduction to JavaScript Proxy
+index: 0
+openGraphCover: /og/javascript-proxy/introduction-javascript-proxy.png
+tags: JavaScript Proxy, Proxy traps
+title: An introduction to JavaScript Proxy
+---
+
+When working with objects in JavaScript, it's common to set and get properties. However, if you access the property directly using square brackets or dot notation, there's no way to prevent users from passing an invalid value.
+
+Let's take an example to understand this better. Imagine we have a `person` object with `age` and `name` properties that indicate the person's age and name.
+
+```js
+let person = {
+    name: 'John Smith',
+    age: 20,
+};
+```
+
+To update the `age` property of our `person` object, simply set `person.age` to the desired value. However, if the value is negative or unreasonably large, it should be rejected as invalid.
+
+```js
+// Valid
+person.age = 42;
+
+// Invalid
+person.age = -5;
+person.age = 200;
+```
+
+To solve the issue at hand, we can implement additional logic or restrictions when setting or getting a property. That's where the **JavaScript Proxy** can be incredibly useful. It allows us to intercept these operations and apply custom behavior before they're completed.
+
+With a proxy, we can ensure that certain properties are only set with specific values or that certain properties can't be accessed at all. This kind of control over object behavior can significantly enhance the security and reliability of our code.
+
+## Creating a Proxy object
+
+JavaScript Proxy is a powerful feature that was introduced in ECMAScript 6. It allows us to create custom behavior for operations on objects. Think of the Proxy as a middleman between the user and the object, which intercepts and modifies the object's behavior.
+
+To create a proxy object in JavaScript, we use the `Proxy` constructor. This constructor takes two arguments: the target object and a handler object. The target object is the object that the proxy wraps around, while the handler object defines the custom behavior for the proxy.
+
+Let's take a look at an example of creating a proxy object.
+
+```js
+const target = {
+    name: 'John Smith',
+    age: 30
+};
+
+const handler = {
+    get: function(target, prop) {
+        console.log(`Getting the property ${prop}`);
+        return target[prop];
+    },
+    set: function(target, prop, value) {
+        console.log(`Setting the property ${prop} to ${value}`);
+        target[prop] = value;
+    },
+};
+
+const proxy = new Proxy(target, handler);
+```
+
+In this example, we have an object called `target` with two properties: `name` and `age`. Additionally, we have another object called `handler` with two methods: `get` and `set`. Finally, we use the `Proxy` constructor to create a new object called `proxy` by passing in the `target` and `handler` objects as arguments.
+
+## Understanding Proxy traps
+
+In JavaScript, a trap is a method on the handler object that intercepts the proxy's default behavior for a particular operation. There are many traps available to us, such as `get`, `set`, `apply`, and `construct`. In the previous section, we introduced the `get` and `set` traps.
+
+The `get` trap is called when a property of the target object is accessed using dot notation or square brackets. When we access a property using these notations, JavaScript automatically calls the `get` method on our handler object and passes in two arguments: the `target` object (the object that the proxy wraps around) and `prop` (the name of the accessed property).
+
+Here's what happens by default when you use the `get` trap:
+
+```js
+const handler = {
+    get: function(target, prop) {
+        return target[prop];
+    },
+};
+```
+
+It's important to note that if you don't define a `get` trap for your handler object in JavaScript, the default behavior for accessing properties will be used.&#x20;
+
+Similarly, the `set` trap is called when a property of the target object is set using dot notation or square brackets. When we set a property using these notations, JavaScript automatically calls the `set` method on our handler object and passes in three arguments: the `target` object (the object that the proxy wraps around), `prop` (the name of the accessed property), and `value` (the value being assigned to the property).
+
+```js
+const handler = {
+    set: function(target, prop, value) {
+        target[prop] = value;
+    },
+};
+```
+
+In addition to the three parameters we discussed earlier, there's a fourth parameter called `receiver`. This parameter refers to the proxy or an object that inherits from it. It can be handy in determining whether properties are being set on the target object or one of its prototypes. By checking if the receiver matches our proxy, we can modify only the properties on the target object and not its prototypes.
+
+## Customizing the Proxy trap
+
+Now that you understand the basics of Proxy traps, we can use its parameters to implement custom behavior for getting or setting properties. For example, let's say we want to prevent negative numbers from being passed to the `age` property of the `person` object. We can modify the `set` trap to only accept numbers in the range of 0 to 120. This ensures that our code works as intended and avoids any unwanted behavior.
+
+```js
+const handler = {
+    set: function(target, prop, value) {
+        if (prop === 'age' && value < 0 || value > 120) {
+            throw new Error('Invalid age');
+            return;
+        }
+        target[prop] = value;
+    },
+};
+```
+
+In the `set` trap handler, we first check if the user is setting the `age` property by looking at the `prop` parameter. Then, we check if the `value` parameter is less than 0 or greater than 120. If both of these conditions are met, we throw an exception.
+
+## Using a Proxy object
+
+After creating a proxy object, we can use it just like any other object. When we access a property on the proxy, the `get` method on the `handler` object is called. Similarly, when we set a property on the proxy, the `set` method on the `handler` object is called.
+
+Let's take a look at an example of using a proxy object:
+
+```js
+const target = {
+    name: 'John Smith',
+    age: 30
+};
+const proxy = new Proxy(target, handler);
+
+console.log(proxy.name);    // John Smith
+```
+
+In this example, we accessed the `name` property on the `proxy` object by calling the `get` method on the `handler` object. This gave us the `name` value from the `target` object.
+
+In addition to getting property values, we can also set them. When we set the `age` property on the `proxy` object, it calls the `set` method on the `handler`. This updates the `age` value on the `target` object.
+
+However, if you try to set an invalid value to the `age` property, an error will be thrown. This is because of the `set` trap customization we did earlier.
+
+```js
+console.log(proxy.age);     // 30
+
+proxy.age = 42;
+proxy.age = -5;             // Throws an exception
+```
+
+## Conclusion
+
+JavaScript Proxy is an incredibly powerful feature that gives us the ability to customize the behavior of operations on objects. This means we can add extra functionality to our objects or alter the way existing objects behave. By using the `Proxy` constructor and a `handler` object, we can intercept and modify the behavior of operations on our objects, making them more flexible and powerful than ever before.
