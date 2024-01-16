@@ -1,0 +1,101 @@
+---
+created: '2024-01-02'
+description: Create a JavaScript Proxy wrapper
+index: 1
+openGraphCover: /og/javascript-proxy/create-proxy-wrapper.png
+title: Create a Proxy wrapper
+---
+
+In our previous post, we explored the basics of [creating](https://phuoc.ng/collection/javascript-proxy/an-introduction-to-javascript-proxy/) and using a Proxy object. We customized the `set` trap to add a simple validation to our target. Here's the code snippet that demonstrates what we did earlier:
+
+```js
+const handler = {
+    set: function(target, prop, value) {
+        if (prop === 'age' && value < 0 || value > 120) {
+            throw new Error('Invalid age');
+            return;
+        }
+        target[prop] = value;
+    },
+};
+```
+
+In the `set` trap handler, we check if the user is trying to set the `age` property by looking at the `prop` parameter. Then, we verify if the `value` parameter is less than 0 or greater than 120. If both conditions are true, we throw an exception.
+
+After that, we can create a Proxy for our person object using the Proxy constructor.
+
+```js
+const target = {
+    name: 'John Smith',
+    age: 30,
+};
+const proxy = new Proxy(target, handler);
+```
+
+## Limitations to address
+
+While this implementation is effective and gives us the power of Proxy, there are a few limitations we need to address.
+
+Firstly, exposing the Proxy to end users is typically not a good idea. We should design the implementation in a way that hides the details.
+
+> Encapsulation is a fundamental concept in programming. It involves organizing code so that data and methods are grouped together as a single unit, such as a class. This principle also involves information hiding, which means that implementation details should be hidden from users. This is often referred to as the **principle of least knowledge** or the [**law of demeter** (LoD)](https://en.wikipedia.org/wiki/Law_of_Demeter). By following these principles, we can create more maintainable and robust code that is less prone to bugs.
+
+In our case, it's important not to expose the inner workings of our Proxy implementation to users unless it's absolutely necessary.
+
+The example we've been working with only applies to a specific target, like a person object. This makes it tough to reuse our code in different projects or with different objects. We'd have to copy and paste our code every time we want to use it on a new object.
+
+Plus, if we wanted to add more traps or change how our proxy behaves, we'd have to update each instance of our code that uses that particular set of traps. This can get messy and lead to errors.
+
+## A better approach
+
+To solve these issues, we can create a wrapper function around our Proxy object that only shows the necessary interface while keeping the implementation details concealed. This is a great way to use the Proxy object effectively. By creating a wrapper, we can encapsulate the behavior we want to apply to our objects in a single function. This makes it much easier to use and manage.
+
+For instance, let's say we have multiple `person` objects with different properties that require different validation rules. Instead of defining unique handlers for each object, we can create a single `withValidators` wrapper function. This function takes an object as an argument and returns a new proxy object with customized behavior that meets our validation requirements.
+
+Here's a simple implementation of a wrapper that validates the `age` property.
+
+```js
+const withValidators = (person) => {
+    const handler = {
+        set: function(target, prop, value) {
+            if (prop === 'age' && value < 0 || value > 120) {
+                throw new Error('Invalid age');
+                return;
+            }
+            target[prop] = value;
+        },
+    };
+
+    return new Proxy(person, handler);
+};
+```
+
+To use the `withValidators` wrapper function, we just need to pass an object as an argument. The function will then return a new proxy object that applies customized behavior to the properties of the original object.
+
+Here's an example of how to call the `withValidators` function:
+
+```js
+const person = withValidators({
+    name: 'John Smith',
+    age: 30,
+});
+```
+
+In this example, we passed an object with `name` and `age` properties to the `withValidators` function. The function returned a new proxy object that applies custom validation rules for the `age` property.
+
+Once we have our `person` object wrapped in a proxy, we can access or set its properties just like any other object. However, if we try to set an invalid value to the `age` property, the custom validator in the handler will throw an error. This ensures that our `person` object meets the validation requirements we've set.
+
+```js
+console.log(person.age);     // 30
+
+person.age = 42;
+person.age = -5;             // Throws an exception
+```
+
+As you can see, using a wrapper makes it easier to reuse our code and ensures consistency across all our objects. Plus, if we need to change how our proxies behave, we only have to update the wrapper function instead of changing each handler one by one. This saves us time and effort in the long run.
+
+## Conclusion
+
+To sum up, we've learned how to create a Proxy wrapper function that enables us to encapsulate the behavior we want to apply to our objects in one place. Wrapping our objects in a proxy with custom validation rules can help ensure consistency and reusability of our code.&#x20;
+
+It also simplifies the process of modifying the behavior of all our proxies at once by updating the wrapper function instead of modifying every handler individually.&#x20;
