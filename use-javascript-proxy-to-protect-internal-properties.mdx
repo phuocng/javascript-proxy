@@ -1,0 +1,183 @@
+---
+created: '2024-01-04'
+description: Use JavaScript Proxy to protect internal properties
+index: 3
+openGraphCover: /og/javascript-proxy/use-javascript-proxy-protect-internal-properties.png
+title: Use JavaScript Proxy to protect internal properties
+---
+
+Protecting the internal properties of an object can be crucial in many situations. For example, if you're working on a web application that handles sensitive user data, it's vital to safeguard that data from unauthorized access. By using private properties, you can prevent malicious actors from accessing or modifying sensitive information.
+
+Encapsulation is another important practice in software development. It involves bundling data and behavior into a single unit (i.e., an object) and controlling access to that unit. Private properties allow you to encapsulate data within an object and expose only the necessary methods for manipulating that data.
+
+When writing tests for your code, it's helpful to isolate certain parts of your codebase to ensure they behave as expected. Using private properties allows you to test individual components without worrying about unintended side effects from other parts of your code.
+
+Let's say we have an object that represents all the information for a user account. In reality, the object contains data queried from a database and may include sensitive information like a social security number (SSN).
+
+```js
+let user = {
+    name: "John Smith",
+    age: 42,
+    ssn: "...",
+};
+```
+
+How can we prevent someone from accessing or changing certain properties from outside? In this post, we'll learn how to use Proxy to achieve that goal.
+
+## Preventing accessing and modifying properties
+
+With the approach we're about to implement, we can protect specific properties by name. However, we've decided to protect all properties that follow a certain naming convention.
+
+In programming, we typically use an underscore (\_) to indicate internal properties. For example, the SSN of the `user` object mentioned earlier should be named `_ssn`.
+
+To achieve this, we define a `get` trap on the `Proxy` object that checks if the requested property begins with an underscore. If it does, we throw an error. If not, we return the property value.
+
+Here's how we'll make it happen:
+
+```js
+const protectInternalProps = (obj) => {
+    const handler = {
+        get(target, key) {
+            if (key.startsWith('_')) {
+                throw new Error(`Cannot access internal property '${key}'`);
+            }
+            return target[key];
+        },
+    };
+
+    return new Proxy(obj, handler);
+};
+```
+
+Similarly, when we attempt to modify an internal property using the assignment operator, it triggers the `set` trap. In our case, we have defined a `set` handler on the `Proxy` object that checks if the property name starts with an underscore (`_`). If it does, we throw an error. Otherwise, we set the value as usual.
+
+Here's how it all comes together:
+
+```js
+const protectInternalProps = (obj) => {
+    const handler = {
+        set(target, key, value) {
+            if (key.startsWith('_')) {
+                throw new Error(`Cannot modify internal property '${key}'`);
+            }
+
+            target[key] = value;
+            return true;
+        },
+    };
+
+    return new Proxy(obj, handler);
+};
+```
+
+In the code above, you'll notice that if we attempt to modify any properties that start with an underscore (`_`), an error message reading `Cannot modify internal property` will be thrown. However, if we try to modify any other property, the value will be set as usual.
+
+Now, let's experiment with it and see what happens.
+
+```js
+const user = {
+    name: "John Smith",
+    _ssn: "XXX-YY-ZZZ",
+};
+
+const protectedUser = protectInternalProps(user);
+
+console.log(protectedUser.name);    // John Smith
+
+// Throw error `Cannot access internal property '_ssn'`
+console.log(protectedUser._ssn);
+protectedUser._ssn = '123-45-678';
+```
+
+But is the current level of protection enough to safeguard these properties? Unfortunately, it is still possible to delete the property using the `delete` function.
+
+```js
+delete protectedUser._ssn;
+```
+
+Another issue is that we can check the existence of the properties of the object by looping over them.
+
+```js
+Object.keys(protectedUser);     // ['name', '_ssn']
+```
+
+Fortunately, Proxy provides additional traps to solve these issues. Now, let's move on to the next sections.
+
+## Stopping properties from being deleted
+
+The `deleteProperty` trap lets us intercept property deletion. If we want to prevent deletion of private properties, we can throw an error if the property name starts with an underscore (`_`).
+
+Here's how we can modify our `handler` object to include the `deleteProperty` trap:
+
+```js
+const handler = {
+    deleteProperty(target, key) {
+        if (key.startsWith('_')) {
+            throw new Error(`Cannot delete internal property '${key}'`);
+        }
+
+        delete target[key];
+        return true;
+    },
+};
+```
+
+If we attempt to use the `delete` function to remove an internal property, an error will be thrown with the message `Cannot delete internal property`.
+
+```js
+const user = {
+    name: "John Smith",
+    _ssn: "XXX-YY-ZZZ",
+};
+
+const protectedUser = protectInternalProps(user);
+
+// Throw error `Cannot delete internal property '_ssn'`
+delete protectedUser._ssn;
+```
+
+## Stopping object properties from being iterated
+
+The `ownKeys` trap is a handy feature that helps solve the problem of accessing internal properties. Whenever the `Object.keys()` method is called on an object, this trap is triggered, and it returns an array of keys that can be accessed.
+
+In our case, we only want to return keys that don't start with an underscore (`_`). We can do this by using the `filter` method to remove all keys that start with an underscore.
+
+Here's how we can modify our `handler` object to include the `ownKeys` trap:
+
+```js
+const handler = {
+    ownKeys(target) {
+        return Object.keys(target).filter(key => !key.startsWith('_'));
+    },
+};
+```
+
+By implementing this, when you call `Object.keys()` on our Proxy object, it will only return an array of non-internal keys.&#x20;
+
+```js
+const user = {
+    name: "John Smith",
+    _ssn: "XXX-YY-ZZZ",
+};
+
+const protectedUser = protectInternalProps(user);
+
+console.log(Object.keys(protectedUser)); // ['name']
+```
+
+This also works with the `for ... in` loop.
+
+```js
+for (let key in protectedUser) {
+    console.log(key);
+}
+// ['name']
+```
+
+By implementing these traps on our Proxy object, we can now make sure that any properties that start with an underscore (`_`) are genuinely private. This means that they cannot be accessed or modified from outside the object.
+
+## Conclusion
+
+To sum up, using a Proxy object to protect internal properties is a smart way to keep sensitive data safe in your web applications. By implementing the `get`, `set`, `deleteProperty`, and `ownKeys` traps on the Proxy object, you can prevent unwanted access or modification of private properties.&#x20;
+
+This approach also helps you maintain encapsulation and test individual components of your codebase without worrying about unintended consequences. Overall, it's a powerful technique that every developer should consider when working with sensitive data in their applications.
