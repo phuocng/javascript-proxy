@@ -1,0 +1,180 @@
+---
+created: '2024-01-03'
+description: The differences between JavaScript Proxy and Object.defineProperty
+index: 2
+openGraphCover: /og/javascript-proxy/javascript-proxy-vs-object-define-property.png
+title: JavaScript Proxy vs Object.defineProperty
+---
+
+When defining properties on a JavaScript object, we have a few options, including using the dot notation (`object.property`) or the bracket notation (`object[property]`). We can also use JavaScript proxy.
+
+However, there's another way to define or modify object properties that's worth exploring: `Object.defineProperty`. This feature gives us more control over object properties by allowing us to define new ones or modify existing ones with specific attributes.
+
+In JavaScript, objects are collections of properties, each with their own key-value pair. The value of a property can be any data type, including functions or other objects. With `Object.defineProperty`, we can define new properties on an object or modify existing ones with attributes that determine how they can be accessed or modified. This method gives us more control over our objects.
+
+In this post, we'll explore the differences between `Object.defineProperty` and JavaScript Proxy. But first, let's take a closer look at the syntax for using `Object.defineProperty`.
+
+## Understanding the syntax of Object.defineProperty
+
+Let's talk about the `defineProperty` function. It takes in three parameters:
+
+```js
+Object.defineProperty(object, propertyname, descriptor);
+```
+
+Here's a breakdown of the `Object.defineProperty` syntax:
+
+-   `object`: This is the object you want to define the property on.
+-   `propertyname`: This is the name of the property you want to create or modify.
+
+The `descriptor` parameter is responsible for managing the behavior of the property. It offers a wide range of options to choose from, including:
+
+-   `value`: This is the value you want to assign to the property. It can be any valid JavaScript data type.
+-   `writable`: This is a boolean that determines whether the property can be changed. If set to `false`, any attempts to change it will result in an error.
+-   `enumerable`: This is a boolean that determines whether the property will show up during object enumeration (like in a `for..in` loop). If set to `false`, it won't show up.
+-   `configurable`: This is a boolean that determines whether the property can be deleted. If set to `false`, any attempts to delete it will result in an error.
+
+Using these attributes with `Object.defineProperty`, we can have precise control over our object properties and ensure they behave exactly how we want them to. In the next sections, we'll explore some common ways to use this function.
+
+## Improving the getters and setters
+
+In our previous discussion, we pointed out an issue where users could pass an invalid value to an object's property. To illustrate this situation, we used the example of a `Person` object with an `age` property that indicates the person's age.
+
+```js
+let person = {
+    age: 20,
+};
+```
+
+If the `age` property is set to a negative number or a number that is unreasonably large, then it should be considered invalid.
+
+```js
+person.age = -5;
+person.age = 200;
+```
+
+The `Object.defineProperty` method allows you to define getters and setters for a property, similar to the functionality of JavaScript Proxy. Getters and setters are functions that enable you to manage access to a property.
+
+If you want to restrict the `age` property of your `person` object, you can use `get` and `set` in the descriptor of `Object.defineProperty` to create a custom getter and setter for `age`. Here's how you can do it:
+
+```js
+let _age = 30;
+Object.defineProperty(person, 'age', {
+    get() {
+        return _age;
+    },
+    set(value) {
+        if (value < 0 || value > 150) {
+            throw new Error("Invalid age");
+        }
+        _age = value;
+    },
+});
+
+console.log(person.age);    // 30
+person.age = 40;
+console.log(person.age);    // 40
+```
+
+In this example, we've created a custom getter and setter for the `_age` property using `get` and `set`. The setter checks if the new value is valid before setting `_age`. This ensures that any attempts to set an invalid value for `person.age` will result in an error being thrown.
+
+```js
+// Throw an error
+person.age = -5;
+person.age = 200;
+```
+
+By using this approach, we can add additional logic to our getter or setter functions as needed.
+
+If we want to apply the same restrictions to multiple person objects, we can use the same approach for the corresponding class property. Here's a straightforward implementation:
+
+```js
+function Person() {
+    let _age = 0;
+
+    Object.defineProperty(this, 'age', {
+        get() {
+            return _age;
+        },
+        set(value) {
+            if (value < 0 || value > 150) {
+                throw new Error('Invalid age');
+            }
+            _age = value;
+        },
+    });
+};
+```
+
+If you try to assign an invalid value to the `age` property of a `Person` class instance, an error will be thrown.
+
+```js
+const person = new Person();
+
+// Throw an error
+person.age = -5;
+person.age = 200;
+```
+
+If we want to change the behavior of a specific property, we can use `Object.defineProperty` again. However, the key difference between `Object.defineProperty` and JavaScript Proxy is that the latter can modify multiple properties at once.
+
+Another difference is that with `Object.defineProperty`, we need to know the name of the property beforehand. But with JavaScript Proxy, we can dynamically handle any property access.
+
+## Creating a read-only property
+
+It's a common task to prevent a property from being changed from outside. Luckily, we have two ways to do it in JavaScript: `Object.defineProperty` and JavaScript Proxy.
+
+To create a read-only property using `Object.defineProperty`, we can set the `writable` attribute to `false`. This will lock the property's value and prevent anyone from changing it after it's been set.
+
+```js
+let person = {
+    name: "John Smith"
+};
+
+Object.defineProperty(person, 'name', {
+    writable: false,
+});
+```
+
+If you attempt to modify the value of `name`, the property value will not change.
+
+```js
+person.name = "Jane";
+
+console.log(person.name);   // John Smith
+```
+
+On the other hand, JavaScript Proxy allows us to create a handler object with a `set` trap that will throw an error every time someone tries to modify the target object's property. This can be a powerful tool in some situations.
+
+```js
+let person = {
+    name: "John Smith"
+};
+
+const readOnlyHandler = {
+    set(target, prop, value) {
+        if (prop == "name") {
+            throw new Error(`Cannot set ${prop} to ${value}.`);
+        }
+        target[prop] = value;
+    },
+};
+
+let proxyPersonReadOnlyName = new Proxy(person, readOnlyHandler);
+```
+
+If you attempt to alter the value of `name`, it will result in an error being thrown.
+
+```js
+// Throws an error:
+// `Cannot set name to Jane.`
+proxyPersonReadOnlyName.name = "Jane";
+```
+
+In this scenario, you can use either `Object.defineProperty` or JavaScript Proxy to create read-only properties in your JavaScript code.
+
+## Conclusion
+
+To sum up, `Object.defineProperty` and JavaScript Proxy are both useful tools for manipulating object properties in JavaScript. `Object.defineProperty` lets us have fine-grained control over each property's behavior, so we can define attributes like configurable, enumerable, and writable for each property. JavaScript Proxy, on the other hand, gives us more flexibility to control access to object properties dynamically.
+
+When deciding between these methods, it's important to consider your specific needs and the level of control you require over your object's properties. Whether you need to define or modify a single property at a time or handle multiple properties dynamically, both `Object.defineProperty` and JavaScript Proxy can help you achieve your goals.
