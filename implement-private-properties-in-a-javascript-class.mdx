@@ -1,0 +1,167 @@
+---
+created: '2024-01-05'
+description: Implement private properties in a JavaScript class
+index: 4
+openGraphCover: /og/javascript-proxy/implement-private-properties-javascript-class.png
+title: Implement private properties in a JavaScript class
+---
+
+In our previous post, we learned how to safeguard an object's properties so they can't be modified or accessed from outside. Object-oriented programming has three types of properties: public, protected, and private. Public properties are accessible from anywhere in the code, whereas protected and private properties can only be accessed within the object or class they belong to.
+
+Protected properties can be accessed by the class and any subclasses that inherit from it, providing flexibility for code reuse and modification. Private properties, however, are only accessible by methods within the same class. This helps prevent interference from external code and maintains data integrity.
+
+Private fields can't be accessed or modified from outside the class they belong to, which makes code more secure and reliable. By restricting access to sensitive data, developers can have more confidence in their code's behavior and avoid potential bugs or security vulnerabilities.
+
+Private fields also make code more readable and maintainable by clarifying which parts of a class are public-facing and which are internal implementation details. In modern JavaScript, private fields are defined using the hash symbol (#) before the field name.
+
+However, in this post, we'll delve into how to create private properties of a class with JavaScript Proxy.
+
+## Naming private properties
+
+As we discussed in the previous post, we'll use the underscore (\_) prefix to indicate protection properties.
+
+In the following example, we create a constructor for the `Person` class that takes three parameters: `name`, `age`, and `_ssn`. The `name` and `age` parameters are public properties that can be accessed outside the class, while `_ssn` is a private property that can only be accessed within the class.
+
+```js
+class Person {
+    constructor(name, age, ssn) {
+        this.name = name;
+        this.age = age;
+        this._ssn = ssn;
+    }
+}
+```
+
+To make a new `Person`, simply use the `new` keyword followed by the class name and required parameters. Let's say we want to create a person named John Smith who is 42 years old and has an SSN of 123-45-6789. We pass these values as parameters. A new instance of the `Person` class is created with those properties set.
+
+```js
+const person = new Person('John Smith', 42, '123-45-6789');
+```
+
+We can access the `_ssn` property directly by using dot notation.
+
+```js
+console.log(person._ssn);       // 123-45-6789
+```
+
+## Setting up Proxy traps
+
+When it comes to protecting the private properties of a class, we can use the same approach that we introduced in our previous post, with just a slight modification.
+
+The `get` and `set` traps work the same way, preventing users from accessing or modifying properties whose names start with an underscore. Here's a quick reminder of the code snippet we used earlier:
+
+```js
+const handler = {
+    get(target, key) {
+        if (key.startsWith('_')) {
+            throw new Error(`Cannot access private property '${key}'`);
+        }
+
+        return target[key];
+    },
+    set(target, key, value) {
+        if (key.startsWith('_')) {
+            throw new Error(`Cannot modify private property '${key}'`);
+        }
+
+        target[key] = value;
+        return true;
+    },
+};
+```
+
+Now, let's create a `ProtectedPerson` class that acts as a proxy for our original `Person` class.
+
+```js
+const ProtectedPerson = new Proxy(Person, handler);
+```
+
+Next, we create a fresh `person` instance using our `ProtectedPerson` constructor. While it may seem like a good idea in theory, in reality, it doesn't work.
+
+```js
+const person = new ProtectedPerson('John Smith', 42, '123-45-6789');
+
+console.log(person._ssn);       // 123-45-6789
+```
+
+When we try to pass the `Person` class to the `Proxy`, it doesn't work as expected because a class is not an object, but rather a blueprint for creating objects. So, when we create an instance of the `ProtectedPerson` proxy, we're actually creating an instance of the `Person` class, which lacks the protections that our handler provides.
+
+To solve this issue, we can use the `Proxy` in the constructor of the `ProtectedPerson` class. This creates a new instance of `ProtectedPerson` and applies the traps defined in the `handler`. This way, we can ensure that the protections are applied to the `ProtectedPerson` instance itself, rather than the `Person` class.
+
+```js
+class ProtectedPerson {
+    constructor(name, age, ssn) {
+        this.name = name;
+        this.age = age;
+        this._ssn = ssn;
+
+        return new Proxy(this, handler);
+    }
+}
+```
+
+In the example above, we define a new class called `ProtectedPerson` that's similar to our original `Person` class. However, instead of directly returning an instance of `this`, we're wrapping it with a `Proxy`.
+
+When we create an instance of the `ProtectedPerson` class, it returns a new `Proxy` object that wraps the original `Person` object. Our handler checks if any private properties are being accessed or modified.
+
+Now, let's try to access the `_ssn` property of the `person` instance created with the `ProtectedPerson` class. As expected, we get an error message because `_ssn` is a private property that can't be accessed from outside the class.
+
+```js
+const person = new ProtectedPerson('John Smith', 42, '123-45-6789');
+
+// Uncaught Error: Cannot access private property '_ssn'
+console.log(person._ssn);
+```
+
+## Accessing private properties internally
+
+However, there's another issue we need to address. Private properties are not only inaccessible from outside, but also from inside the class. To demonstrate this issue, let's add a function called `getSsn` that returns the value of the `_ssn` property.
+
+```js
+class ProtectedPerson {
+    getSsn() {
+        return this._ssn;
+    }
+}
+```
+
+Even if we execute the `getSsn()` function on a new instance, it will still throw the same error as when we access the `_ssn` property directly. This happens because the new instance is proxied to `this`, and it can't access the `_ssn` property directly due to the protection.
+
+```js
+const person = new ProtectedPerson('John Smith', 42, '123-45-6789');
+
+// Uncaught Error: Cannot access private property '_ssn'
+person.getSsn();
+```
+
+To address the issue, we need to make a slight modification to the `get` trap handler. In the previous version, the handler threw an error if a property name started with an underscore. However, in this updated version, we first retrieve the value from the `target` object and check if it's a function. If it is, we bind it to the target object, making it accessible within the instance. This allows us to access private properties within class methods without encountering any errors.
+
+Here's what the updated `get` trap looks like:
+
+```js
+const handler = {
+    get(target, key) {
+        if (key.startsWith('_')) {
+            throw new Error(`Cannot access private property '${key}'`);
+        }
+        const value = target[key];
+        return (typeof value === 'function') ? value.bind(target) : value;
+    },
+};
+```
+
+Now that we've implemented the updated handler, we can confidently call the `getSsn()` method on a `ProtectedPerson` instance without encountering any errors.
+
+```js
+const person = new ProtectedPerson('John Smith', 42, '123-45-6789');
+
+console.log(person.getSsn());   // 123-45-6789
+```
+
+## Conclusion
+
+In this post, we explored how to create private properties within a class using the JavaScript Proxy feature. We learned that private fields can't be accessed or modified from outside of the class they belong to, which is great for maintaining data integrity and preventing unintended side effects from external code. Additionally, private fields can make code more readable and maintainable by making it clear which parts of a class are public-facing and which are internal implementation details.
+
+While using the hash symbol (#) before the field name is one way to define private fields in modern JavaScript, we can also use a `Proxy` object with `get` and `set` traps for more control over how our private properties are accessed and modified.
+
+By using proxies, we add an extra layer of security to our code and ensure that sensitive information remains protected.
